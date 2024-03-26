@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-
+from airflow.helper.sql_helper import run_mysql_etl
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
@@ -15,11 +15,11 @@ default_args = {
 }
 
 dag = DAG(
-    dag_id='sample_v2',
+    dag_id='tables_inner_join_etl',
     default_args=default_args,
     description='sample',
     start_date=datetime(2021, 7, 29, 2),
-    schedule_interval='@daily'
+    # schedule_interval='@daily'
 )
 
 run_etl = PythonOperator(

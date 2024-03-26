@@ -37,4 +37,5 @@ INNER JOIN sellers AS s ON i.seller_id = s.seller_id
 INNER JOIN product_category_name AS ct ON p.product_category_name = ct.product_category_name;
 """
 
-    df = pd.read_sql(sql=str_sql, con=db_adventureworks2012)
+    df = pd.read_sql(sql=merge_query, con=db_ecommerce)
+    print(df.head(3))
