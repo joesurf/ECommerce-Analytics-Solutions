@@ -17,8 +17,8 @@ with DAG(
     dag_id='tables_inner_join_etl',
     default_args=default_args,
     description='sample',
-    start_date=datetime(2024, 3, 28, 2),
-    # schedule_interval='@daily'
+    start_date=datetime(2024, 3, 20, 2),
+    schedule_interval='@daily'
 ) as dag:
 
     run_etl = PythonOperator(
@@ -27,12 +27,10 @@ with DAG(
         dag=dag
     )
 
-    run_etl
+    run_this = BashOperator(
+        task_id="run_starting",
+        bash_command="echo Starting ETL Process...",
+        dag=dag
+    )
 
-# run_this = BashOperator(
-#     task_id="run_after_loop",
-#     bash_command="echo 1",
-#     dag=dag
-# )
-
-# run_this.set_downstream(run_etl)
+    run_this.set_downstream(run_etl)
