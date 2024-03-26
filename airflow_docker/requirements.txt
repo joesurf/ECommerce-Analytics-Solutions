@@ -1,0 +1,6 @@
+mysql-connector-python
+python-dotenv
+mysqlclient
+SQLAlchemy
+pandas
+numpy
