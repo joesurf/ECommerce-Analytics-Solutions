@@ -4,3 +4,4 @@ mysqlclient
 SQLAlchemy
 pandas
 numpy
+pymysql>=0.10.0

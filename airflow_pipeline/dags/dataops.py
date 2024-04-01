@@ -2,7 +2,9 @@ import os
 from datetime import datetime
 
 import pandas as pd
+import mysql.connector
 from sqlalchemy import create_engine
+from sqlalchemy.exc import ProgrammingError
 from dotenv import load_dotenv
 
 from airflow import DAG
@@ -19,16 +21,52 @@ def construct_dataset():
     - Create empty dataset or initialize dataset schema
     - Define data types, columns, and any metadata
     """
-    # Example implementation:
-    dataset_schema = {
-        'id': int,
-        'name': str,
-        'age': int,
-        # Add more columns as needed
-    }
-    # Create or initialize dataset with defined schema
-    # Example: dataset = create_empty_dataset(dataset_schema)
-    pass
+   # Database connection parameters
+    username = 'root'
+    password = 'password'
+    host = 'host.docker.internal'  # Adjusted for Docker
+    port = '3306'
+    database = 'olist_staging'
+    
+    # Try to connect to the root database to create a new database
+    try:
+        # Connect to MySQL server
+        root_engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/')
+        with root_engine.connect() as root_conn:
+            # Create new database if it doesn't exist
+            root_conn.execute(f"CREATE DATABASE IF NOT EXISTS {database};")
+        
+    except ProgrammingError as pe:
+        print(f"An error occurred: {pe}")
+
+    # Connect to the newly created database
+    engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/{database}')
+
+    # Function to generate table names from CSV file paths
+    def generate_table_name(file_path):
+        return file_path.split('/')[-1].split('.')[0]
+    
+    # List of CSV files
+    csv_files = [
+        '/opt/airflow/data/olist_customers_dataset.csv',
+        '/opt/airflow/data/olist_geolocation_dataset.csv',
+        '/opt/airflow/data/olist_order_items_dataset.csv',
+        '/opt/airflow/data/olist_order_payments_dataset.csv',
+        '/opt/airflow/data/olist_order_reviews_dataset.csv',
+        '/opt/airflow/data/olist_orders_dataset.csv',
+        '/opt/airflow/data/olist_products_dataset.csv',
+        '/opt/airflow/data/olist_sellers_dataset.csv',
+        '/opt/airflow/data/product_category_name_translation.csv'
+    ]
+    
+    # Iterate over CSV files to load them into the database
+    for file_path in csv_files:
+        df = pd.read_csv(file_path)
+        table_name = generate_table_name(file_path)
+        df.to_sql(table_name, con=engine, if_exists='replace', index=False)
+    
+    print("Dataset construction complete.")
+
 
 def ingest_data():
     """
