@@ -4,4 +4,11 @@ plugins/
 .env
 
 docker-compose.yaml
-Dockerfile
+Dockerfdocker-compose.yaml
+Dockerfile.airflow
+Dockerfile.mlflow
+
+config/
+logs/
+plugins/
+data/
