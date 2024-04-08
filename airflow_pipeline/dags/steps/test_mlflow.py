@@ -8,9 +8,11 @@ import mlflow
 from mlflow.models import infer_signature
 
 
-def run_sample_ml_model():
-    # df = pd.read_csv('/opt/airflow/data/iris.csv')
-    df = pd.read_csv('../../data/iris.csv')
+def run_sample_ml_model(main=True):
+    if main:
+        df = pd.read_csv('/opt/airflow/data/iris.csv')
+    else:
+        df = pd.read_csv('../../data/iris.csv')
 
     print("Data Read")
 
@@ -43,7 +45,7 @@ def run_sample_ml_model():
     print("Accuracy determined:", accuracy)
 
     # Set tracking server uri for logging
-    mlflow.set_tracking_uri(uri="http://localhost:8081")
+    mlflow.set_tracking_uri(uri="http://mlflow-server:5000")
 
     print("Tracking URI set")
 
@@ -83,4 +85,4 @@ def run_sample_ml_model():
 
 
 if __name__ == "__main__":
-    run_sample_ml_model()
+    run_sample_ml_model(main=False)
