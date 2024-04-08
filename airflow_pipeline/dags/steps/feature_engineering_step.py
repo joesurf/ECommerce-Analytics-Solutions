@@ -1,6 +1,8 @@
 import logging
 from typing import Optional
 
+from steps.utils.data_classes import FeatureEngineeringData
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -13,8 +15,13 @@ class FeatureEngineeringStep:
         feature_engineering_data (FeaturesEngineeringData): Paths relative to the FeatureEngineeringStep
     """
 
-    def __init__() -> None:
-        pass
+    def __init__(
+        self, 
+        inference_mode: bool, 
+        feature_engineering_data: FeatureEngineeringData
+    ) -> None:
+        self.inference_mode = inference_mode
+        self.feature_engineering_data = feature_engineering_data
 
     def __call__(
             self,
@@ -22,4 +29,4 @@ class FeatureEngineeringStep:
         test_path: Optional[str] = None,
         batch_path: Optional[str] = None,
     ) -> None:
-        pass
+        LOGGER.info("Feature Engineering...")

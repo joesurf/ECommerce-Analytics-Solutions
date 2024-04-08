@@ -32,6 +32,8 @@ class PreprocessStep:
         Args:
             data_path (Path): Input
         """
+        LOGGER.info("Preprocessing data...")
+    
         sql_connector = SQLConnector()
         raw_df = sql_connector.sql_to_df(table=data_path)
 

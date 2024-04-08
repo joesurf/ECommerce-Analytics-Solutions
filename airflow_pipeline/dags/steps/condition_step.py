@@ -10,7 +10,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ConditionStep:
-    """Condition to register the model.
+    """
+    Condition to register the model.
 
     Args:
         criteria (float): Coefficient applied to the metric of the model registered in the model registry.
@@ -28,6 +29,5 @@ class ConditionStep:
     def __call__(self, mlflow_run_id: str) -> None:
         """
         Compare the metric from the last run to the model in the registry.
-        if `metric_run > registered_metric*(1 + self.criteria)`, then the model is registered.
         """
-        pass
+        LOGGER.info("Comparing...")

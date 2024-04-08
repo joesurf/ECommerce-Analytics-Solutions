@@ -1,6 +1,12 @@
 from typing import Dict, Any
+import logging
+
+import mlflow
 
 from steps.config import TrainerConfig, MlFlowConfig
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class TrainStep:
@@ -30,4 +36,6 @@ class TrainStep:
             test_path: str,
             target: str
         ) -> None:
-        pass
+        LOGGER.info("Training...")
+
+        return {"mlflow_run_id": mlflow.active_run().info.run_id}
