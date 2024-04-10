@@ -4,14 +4,11 @@ from typing import Optional
 
 @dataclass
 class PreprocessingData:
-    train_path: Optional[str] = None
-    test_path: Optional[str] = None
-    batch_path: Optional[str] = None
+    raw_path: Optional[str] = None
+    processed_path: Optional[str] = None
 
 
 @dataclass
 class FeatureEngineeringData:
-    encoders_path: str
-    train_path: Optional[str] = None
-    test_path: Optional[str] = None
-    batch_path: Optional[str] = None
+    processed_path: Optional[str] = None
+    featured_path: Optional[str] = None
