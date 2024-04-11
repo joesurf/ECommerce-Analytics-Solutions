@@ -1,4 +1,10 @@
+config/
+logs/
+plugins/
+.env
+
 docker-compose.yaml
+Dockerfdocker-compose.yaml
 Dockerfile.airflow
 Dockerfile.mlflow
 
