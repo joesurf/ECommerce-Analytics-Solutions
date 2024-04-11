@@ -1,0 +1,8 @@
+docker-compose.yaml
+Dockerfile.airflow
+Dockerfile.mlflow
+
+config/
+logs/
+plugins/
+data/
