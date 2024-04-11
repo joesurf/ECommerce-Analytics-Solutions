@@ -6,10 +6,19 @@ import mysql.connector
 from sqlalchemy import create_engine
 from sqlalchemy.exc import ProgrammingError
 from dotenv import load_dotenv
-
+import re
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-
+import nltk
+nltk.download('stopwords')
+nltk.download('wordnet')
+nltk.download('rslp')
+nltk.download('punkt')
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+from nltk.stem import RSLPStemmer
+from textblob import TextBlob
+from nltk.tokenize import word_tokenize
 
 load_dotenv()
 
@@ -68,10 +77,12 @@ def construct_dataset():
     print("Dataset construction complete.")
 
 
-
+def fetch_table(engine, table_name):
+    query = f"SELECT * FROM {table_name};"
+    df = pd.read_sql(query, con=engine)
+    return df
 
 def ingest_data():
-
 
     username = 'root'
     password = 'password'
@@ -79,10 +90,7 @@ def ingest_data():
     port = '3306'
     source_database = 'olist_staging'
     target_database = 'olist_datawarehouse'
-    def fetch_table(engine, table_name):
-        query = f"SELECT * FROM {table_name};"
-        df = pd.read_sql(query, con=engine)
-        return df
+
     # Create database connections
     source_engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/{source_database}')
     target_engine = create_engine(f'mysql+pymysql://{username}:{password}@{host}:{port}/{target_database}')
@@ -129,14 +137,27 @@ def integrate_data():
     pass
 
 def cleanse_data():
-    """
-    Pseudo code:
-    - Cleanse and preprocess the integrated dataset
-    - Handle missing values, duplicates, outliers, etc.
-    """
-    # Example implementation:
-    # Cleanse data (e.g., remove duplicates, handle missing values)
-    pass
+    username = 'root'
+    password = 'password'
+    host = 'host.docker.internal'  # Adjusted for Docker
+    port = '3306'
+    database = 'olist_datawarehouse'
+    db_url = f'mysql+pymysql://{username}:{password}@{host}:{port}/{database}'
+    engine = create_engine(db_url)
+
+    # Fetch the cleansed dataset from the database
+    with engine.connect() as conn:
+        df = pd.read_sql('SELECT * FROM main', con=conn)
+    df['review_comment_title'] = df['review_comment_title'].fillna("")
+    df['review_comment_message'] = df['review_comment_message'].fillna("")
+
+    df['have_review_message'] = df['review_comment_message'].apply(lambda x: 0 if x == '' else 1)
+
+
+    with engine.connect() as conn:
+        df.to_sql(name='main', con=conn, if_exists='replace', index=False)
+    print("Data cleaning complete.")
+    
 def classify_cat(x):
     categories = {
         'Furniture': ['office_furniture', 'furniture_decor', 'furniture_living_room', 'kitchen_dining_laundry_garden_furniture', 'bed_bath_table', 'home_comfort', 'home_comfort_2', 'home_construction', 'garden_tools', 'furniture_bedroom', 'furniture_mattress_and_upholstery'],
@@ -189,6 +210,140 @@ def transform_data():
     df['shipping_days'] = (df['order_delivered_customer_date'] - df['order_delivered_carrier_date']).dt.days
     df.drop(df[df['shipping_days'] < 0].index, inplace=True)  # Remove records with negative shipping days
 
+
+    def remove_breakline_carriage_return(df, column_name):
+        """
+        Remove breaklines and carriage returns from a column in a pandas DataFrame.
+
+        Args:
+        df (pandas.DataFrame): The DataFrame containing the column.
+        column_name (str): The name of the column from which to remove breaklines and carriage returns.
+
+        Returns:
+        pandas.DataFrame: The DataFrame with breaklines and carriage returns removed from the specified column.
+        """
+        # Define a lambda function to remove breaklines and carriage returns
+        remove_func = lambda x: re.sub(r'[\n\r]', '', x) if isinstance(x, str) else x
+        
+        # Apply the lambda function to the specified column
+        df[column_name] = df[column_name].apply(remove_func)
+        
+        return df
+    df = remove_breakline_carriage_return(df, 'review_comment_message')
+    def re_hyperlinks(text):
+        """
+        Args:
+        ----------
+        text: string object with text content to be prepared [type: str]
+        """
+        # Applying regex
+        pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+
+
+        return re.sub(pattern, ' link ', text)
+    df['review_comment_message'] = df['review_comment_message'].apply(re_hyperlinks)
+
+    def re_dates(text):
+        """
+        Args:
+        ----------
+        text_list: list object with text content to be prepared [type: list]
+        """
+        
+        # Applying regex
+        pattern = r'([0-2][0-9]|(3)[0-1])(\/|\.)(((0)[0-9])|((1)[0-2]))(\/|\.)\d{2,4}'
+        return re.sub(pattern, ' date ', text)
+    
+    df['review_comment_message'] = df['review_comment_message'].apply(re_dates)
+
+    def re_money(text):
+        """
+        Args:
+        ----------
+        text_list: list object with text content to be prepared [type: list]
+        """
+        
+        # Applying regex
+        pattern = r'[R]{0,1}\$[ ]{0,}\d+(,|\.)\d+'
+        return re.sub(pattern, ' dinheiro ', text)
+    df['review_comment_message'] = df['review_comment_message'].apply(re_money)
+
+    def re_numbers(text):
+        """
+        Args:
+        ----------
+        text_series: list object with text content to be prepared [type: list]
+        """
+        
+        # Applying regex
+        return re.sub('[0-9]+', ' numero ', text)
+    df['review_comment_message'] = df['review_comment_message'].apply(re_numbers)
+
+    def re_negation(text):
+        """
+        Args:
+        ----------
+        text_series: list object with text content to be prepared [type: list]
+        """
+        
+        # Applying regex
+        return re.sub('([nN][ãÃaA][oO]|[ñÑ]| [nN] )', ' negação ', text)
+    df['review_comment_message'] = df['review_comment_message'].apply(re_negation)
+
+    def re_special_chars(text):
+        """
+        Args:
+        ----------
+        text_series: list object with text content to be prepared [type: list]
+        """
+        
+        # Applying regex
+        return re.sub(r'\W', ' ', text)
+    
+    df['review_comment_message'] = df['review_comment_message'].apply(re_special_chars)
+
+    def re_whitespaces(text):
+        """
+        Args:
+        ----------
+        text: string object with text content to be prepared [type: str]
+        """
+        # Applying regex
+        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r'[ \t]+$', '', text)
+        return text
+    
+    df['review_comment_message'] = df['review_comment_message'].apply(re_whitespaces)
+    def stopwords_removal(text, cached_stopwords=stopwords.words('portuguese')):
+        """
+        Remove stopwords and convert text to lowercase.
+
+        Args:
+        text: string object containing the text.
+        cached_stopwords: list of stopwords to be removed (default: Portuguese stopwords).
+
+        Returns:
+        Cleaned text without stopwords and converted to lowercase.
+        """
+        cleaned_text = ' '.join(word.lower() for word in text.split() if word.lower() not in cached_stopwords)
+        return cleaned_text
+    df['review_comment_message'] = df['review_comment_message'].apply(stopwords_removal)
+    stemmer = RSLPStemmer()
+    # Define the function to perform stemming
+    def stem_text(text):
+        # Tokenize the text into words
+        words = word_tokenize(text)
+        # Stem each word and join them back into a string
+        stemmed_words = [stemmer.stem(word) for word in words]
+        return ' '.join(stemmed_words)
+    df['review_comment_message'] = df['review_comment_message'].apply(stem_text)
+    def calculate_sentiment(text):
+        blob = TextBlob(text)
+        sentiment_score = blob.sentiment.polarity  # polarity ranges from -1 (negative) to 1 (positive)
+        return sentiment_score
+
+# Apply the calculate_sentiment function to the 'text_column' in the DataFrame
+    df['sentiment_score'] = df['review_comment_message'].apply(calculate_sentiment)
     # Save transformed dataset back to the database
     with engine.connect() as conn:
         df.to_sql(name='main_transformed', con=conn, if_exists='replace', index=False)
@@ -254,6 +409,7 @@ cleanse_data_task = PythonOperator(
     python_callable=cleanse_data,
     dag=dag,
 )
+
 
 transform_data_task = PythonOperator(
     task_id='transform_data',
