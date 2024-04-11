@@ -40,7 +40,7 @@ class ConditionConfig:
 
 
 class MlFlowConfig:
-    uri = "http://mlflow-server:5000"
+    uri = "http://airflow_pipeline-mlflow-server-1:5000"
 
 
 class LogisticRegressionConfig:

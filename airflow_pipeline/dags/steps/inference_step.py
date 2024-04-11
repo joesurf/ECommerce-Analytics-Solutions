@@ -47,6 +47,10 @@ class InferenceStep:
         if model:
             # Transform np.ndarray into list for serialization
             prediction = model.predict(X).tolist()
+
+            result = pd.concat([featured_df['customer_id'], pd.Series(prediction)], axis=1)
+            sql_connector.df_to_sql(table='churn_predictions', df=result)
+
             LOGGER.info(f"Prediction: {prediction}")
             return json.dumps(prediction)
         else:
