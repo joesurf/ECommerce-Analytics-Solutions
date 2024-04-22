@@ -36,13 +36,7 @@ class InferenceStep:
             'product_category_Industry & Construction'
         ]]
 
-        # standardise numerical variables
-        numerical_columns = ['review_score', 'price', 'freight_value', 'payment_installments', 'payment_value']
-
-        scaler = StandardScaler()
-
-        X[numerical_columns] = scaler.fit_transform(X[numerical_columns])
-
+        print(X.head(10).to_json(orient='records'))
 
         if model:
             # Transform np.ndarray into list for serialization
