@@ -18,8 +18,6 @@ class FeatureEngineeringStep:
         self.feature_engineering_data = feature_engineering_data
 
     def __call__(self) -> None:
-        return "Skipping feature engineering step"
-
         sql_connector = SQLConnector()
         processed_df = sql_connector.sql_to_df(table=self.feature_engineering_data.processed_path)
 

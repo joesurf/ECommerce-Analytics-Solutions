@@ -16,7 +16,6 @@ class PreprocessStep:
         self.preprocessing_data = preprocessing_data
 
     def __call__(self) -> None:
-        return
         sql_connector = SQLConnector()
         raw_df = sql_connector.sql_to_df(table=self.preprocessing_data.raw_path)
 
