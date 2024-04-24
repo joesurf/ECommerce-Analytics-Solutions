@@ -6,7 +6,10 @@ from mlflow.models import infer_signature
 
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, accuracy_score
 from sklearn.ensemble import RandomForestClassifier
@@ -63,26 +66,51 @@ class TrainStep:
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TrainerConfig.test_size, random_state=TrainerConfig.random_state) 
 
-        # standardise numerical variables
-        numerical_columns = ['review_score', 'price', 'freight_value', 'payment_installments', 'payment_value']
+        # pipeline
+        categorical_features = X_train.select_dtypes(include=['object']).columns
+        categorical_transformer = Pipeline(steps=[
+            ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
+            ('onehot', OneHotEncoder(handle_unknown='ignore'))
+        ])
 
-        scaler = StandardScaler()
+        numerical_features = X_train.select_dtypes(include=['int64', 'float64']).columns
+        numerical_transformer = Pipeline(steps=[
+            ('imputer', SimpleImputer(strategy='median')),
+            ('scaler', StandardScaler())
+        ])
 
-        X_train[numerical_columns] = scaler.fit_transform(X_train[numerical_columns])
-        X_test[numerical_columns] = scaler.transform(X_test[numerical_columns])
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ('cat', categorical_transformer, categorical_features),
+                ('num', numerical_transformer, numerical_features),
+            ])
 
         # TODO: Select model
         if self.model_name == "RandomForest":
-            model, metrics, modelConfig = self._random_forest(X_train, y_train, X_test, y_test)
+            model, modelConfig = self._random_forest(X_train, y_train, X_test, y_test)
 
         elif self.model_name == "XGBoost":
-            model, metrics, modelConfig = self._xgboost(X_train, y_train, X_test, y_test)
+            model, modelConfig = self._xgboost(X_train, y_train, X_test, y_test)
 
         elif self.model_name == "LogisticRegression":
-            model, metrics, modelConfig = self._logistic_regression(X_train, y_train, X_test, y_test)
+            model, modelConfig = self._logistic_regression(X_train, y_train, X_test, y_test)
 
         else: # Default: LogisticRegression
-            model, metrics, modelConfig = self._logistic_regression(X_train, y_train, X_test, y_test)
+            model, modelConfig = self._logistic_regression(X_train, y_train, X_test, y_test)
+
+        pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                                ('model', model)])
+
+        pipeline.fit(X_train, y_train)
+        y_pred = pipeline.predict(X_test)
+
+        metrics = {
+            "roc_auc": roc_auc_score(y_test, y_pred),
+            "precision": precision_score(y_test, y_pred),
+            "recall": recall_score(y_test, y_pred),
+            "f1": f1_score(y_test, y_pred),
+            "accuracy": accuracy_score(y_test, y_pred)
+        }
 
         # Set tracking server uri for logging
         mlflow.set_tracking_uri(uri=MlFlowConfig.uri)
@@ -107,13 +135,14 @@ class TrainStep:
             
             # Set a tag to identify the experiment run
             mlflow.set_tag("Training Info", f"Churn Prediction - {modelConfig.model_name} Model")
+            mlflow.set_tag("mlflow.runName", modelConfig.model_name)
 
             # Infer the model signature
-            signature = infer_signature(X_train, model.predict(X_train))
+            signature = infer_signature(X_train, pipeline.predict(X_train))
 
             # Log the model
             model_info = mlflow.sklearn.log_model(
-                sk_model=model,
+                sk_model=pipeline,
                 artifact_path=modelConfig.artifact_path,
                 signature=signature,
                 input_example=X_train,
@@ -131,69 +160,21 @@ class TrainStep:
         LOGGER.info("Training random forest model...")
 
         model = RandomForestClassifier(**RandomForestConfig.params)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
 
-        metrics = {
-            "roc_auc": roc_auc_score(y_test, y_pred),
-            "precision": precision_score(y_test, y_pred),
-            "recall": recall_score(y_test, y_pred),
-            "f1": f1_score(y_test, y_pred),
-            "accuracy": accuracy_score(y_test, y_pred)
-        }
-
-        return model, metrics, RandomForestConfig
+        return model, RandomForestConfig
 
     @staticmethod
     def _xgboost(X_train: pd.DataFrame, y_train: pd.DataFrame, X_test: pd.DataFrame, y_test: pd.DataFrame) -> dict:
         LOGGER.info("Training xgboost model...")
 
         model = xgb.XGBClassifier(**XGBoostConfig.params)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
 
-        metrics = {
-            "roc_auc": roc_auc_score(y_test, y_pred),
-            "precision": precision_score(y_test, y_pred),
-            "recall": recall_score(y_test, y_pred),
-            "f1": f1_score(y_test, y_pred),
-            "accuracy": accuracy_score(y_test, y_pred)
-        }
-
-        return model, metrics, XGBoostConfig
-
-    @staticmethod
-    def _svm(X_train: pd.DataFrame, y_train: pd.DataFrame, X_test: pd.DataFrame, y_test: pd.DataFrame) -> dict:
-        LOGGER.info("Training svc model...")
-
-        model = SVC(**SVCConfig.params)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-
-        metrics = {
-            "roc_auc": roc_auc_score(y_test, y_pred),
-            "precision": precision_score(y_test, y_pred),
-            "recall": recall_score(y_test, y_pred),
-            "f1": f1_score(y_test, y_pred),
-            "accuracy": accuracy_score(y_test, y_pred)
-        }
-
-        return model, metrics, SVCConfig
+        return model, XGBoostConfig
 
     @staticmethod
     def _logistic_regression(X_train: pd.DataFrame, y_train: pd.DataFrame, X_test: pd.DataFrame, y_test: pd.DataFrame) -> dict:
         LOGGER.info("Training logistic regression model...")
 
         model = LogisticRegression(**LogisticRegressionConfig.params)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
 
-        metrics = {
-            "roc_auc": roc_auc_score(y_test, y_pred),
-            "precision": precision_score(y_test, y_pred),
-            "recall": recall_score(y_test, y_pred),
-            "f1": f1_score(y_test, y_pred),
-            "accuracy": accuracy_score(y_test, y_pred)
-        }
-
-        return model, metrics, LogisticRegressionConfig
+        return model, LogisticRegressionConfig

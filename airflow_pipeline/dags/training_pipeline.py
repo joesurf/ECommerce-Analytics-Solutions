@@ -2,10 +2,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator, BranchPythonOperator
-
-
-from steps.test_mlflow import run_sample_ml_model
+from airflow.operators.python import PythonOperator
 
 from steps.preprocess_step import PreprocessStep
 from steps.feature_engineering_step import FeatureEngineeringStep

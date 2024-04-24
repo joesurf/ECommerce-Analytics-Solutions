@@ -16,8 +16,6 @@ class PreprocessStep:
         self.preprocessing_data = preprocessing_data
 
     def __call__(self) -> None:
-        # if train_only: return "Skipping processing step"
-
         sql_connector = SQLConnector()
         raw_df = sql_connector.sql_to_df(table=self.preprocessing_data.raw_path)
 
@@ -28,4 +26,7 @@ class PreprocessStep:
     @staticmethod
     def _preprocess(df: pd.DataFrame) -> pd.DataFrame:
         LOGGER.info("Processing data...")
+
+        # processing done in data ops
+
         return df

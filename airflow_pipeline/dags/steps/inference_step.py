@@ -36,17 +36,15 @@ class InferenceStep:
             'product_category_Industry & Construction'
         ]]
 
-        # standardise numerical variables
-        numerical_columns = ['review_score', 'price', 'freight_value', 'payment_installments', 'payment_value']
-
-        scaler = StandardScaler()
-
-        X[numerical_columns] = scaler.fit_transform(X[numerical_columns])
-
+        print(X.head(10).to_json(orient='records'))
 
         if model:
             # Transform np.ndarray into list for serialization
             prediction = model.predict(X).tolist()
+
+            result = pd.concat([featured_df['customer_id'], pd.Series(prediction)], axis=1)
+            sql_connector.df_to_sql(table='churn_predictions', df=result)
+
             LOGGER.info(f"Prediction: {prediction}")
             return json.dumps(prediction)
         else:
