@@ -7,8 +7,10 @@ docker-compose.yaml
 Dockerfdocker-compose.yaml
 Dockerfile.airflow
 Dockerfile.mlflow
+Dockerfile.mlflow_production
 
 config/
 logs/
 plugins/
 data/
+mlflow/

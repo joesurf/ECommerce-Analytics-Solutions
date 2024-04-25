@@ -18,8 +18,6 @@ class FeatureEngineeringStep:
         self.feature_engineering_data = feature_engineering_data
 
     def __call__(self) -> None:
-        # if train_only: return "Skipping feature engineering step"
-
         sql_connector = SQLConnector()
         processed_df = sql_connector.sql_to_df(table=self.feature_engineering_data.processed_path)
 
@@ -59,6 +57,6 @@ class FeatureEngineeringStep:
 
         mapping = {'More than 1 year': 1, '6 months-1 year': 0, '3-6 months': 0, '1-3 month': 0, '0-30 days': 0}
         df_encoded['Churned'] = df_encoded['purchase_interval'].map(mapping)
-        df_encoded.drop(columns=['purchase_interval'], inplace=True)
+        # df_encoded.drop(columns=['purchase_interval'], inplace=True)
 
         return df_encoded
